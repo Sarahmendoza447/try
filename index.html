@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Tracking with Routing</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 400px; /* Set the height of the map */
+            width: 100%; /* Set the width of the map */
+        }
+    </style>
+</head>
+<body>
+
+<h1>Track My Location</h1>
+<button onclick="trackLocation()">Get My Location and Route</button>
+<p id="location"></p>
+<p id="method"></p>
+<div id="map"></div> <!-- Div for the map -->
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+<script>
+    let map;
+    let marker;
+    let destinationMarker;
+    let routeControl;
+
+    // Coordinates for the destination
+    const destinationCoords = [14.07183321906476, 120.62732866129771];
+
+    function trackLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(showPosition, showError, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            });
+        } else {
+            document.getElementById("location").innerHTML = "Geolocation is not supported by this browser.";
+        }
+    }
+
+    function showPosition(position) {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const accuracy = position.coords.accuracy; // Accuracy in meters
+
+        document.getElementById("location").innerHTML = `Latitude: ${lat}<br>Longitude: ${lon}`;
+
+        // Determine the location tracking method based on accuracy
+        let method;
+        if (accuracy <= 30) {
+            method = "GPS (High Accuracy)";
+        } else if (accuracy > 30 && accuracy <= 100) {
+            method = "Wi-Fi (Moderate Accuracy)";
+        } else {
+            method = "Cell Tower (Low Accuracy)";
+        }
+        document.getElementById("method").innerHTML = "Location Tracking Method: " + method;
+
+        // Initialize the map if not already done
+        if (!map) {
+            map = L.map('map').setView([lat, lon], 15); // Set initial view to user's location
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            // Add marker for the user's location
+            marker = L.marker([lat, lon]).addTo(map);
+
+            // Add marker for the destination
+            destinationMarker = L.marker(destinationCoords).addTo(map).bindPopup("Destination").openPopup();
+
+            // Add routing control for directions
+            routeControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(lat, lon), // User's location
+                    L.latLng(destinationCoords[0], destinationCoords[1]) // Destination
+                ],
+                routeWhileDragging: true, // Allows for interaction with the route
+                showAlternatives: true, // Shows alternative routes (if available)
+                altLineOptions: { styles: [{ color: 'blue', opacity: 0.7, weight: 6 }] }, // Styling the route line
+                createMarker: function() { return null; } // Disable default markers for start/end points
+            }).addTo(map);
+        } else {
+            // Update marker position and routing
+            marker.setLatLng([lat, lon]);
+            map.setView([lat, lon]); // Center the map on the new location
+
+            // Update the route with new location and destination
+            routeControl.setWaypoints([
+                L.latLng(lat, lon), // User's updated location
+                L.latLng(destinationCoords[0], destinationCoords[1]) // Destination
+            ]);
+        }
+    }
+
+    function showError(error) {
+        switch (error.code) {
+            case error.PERMISSION_DENIED:
+                document.getElementById("location").innerHTML = "User denied the request for Geolocation.";
+                break;
+            case error.POSITION_UNAVAILABLE:
+                document.getElementById("location").innerHTML = "Location information is unavailable.";
+                break;
+            case error.TIMEOUT:
+                document.getElementById("location").innerHTML = "The request to get user location timed out.";
+                break;
+            case error.UNKNOWN_ERROR:
+                document.getElementById("location").innerHTML = "An unknown error occurred.";
+                break;
+        }
+    }
+</script>
+
+</body>
+</html>
